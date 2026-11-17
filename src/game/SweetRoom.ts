@@ -41,29 +41,30 @@ export class SweetRoom {
   private camLastX = 0
   private camLastY = 0
 
-  private wallMatte = matte('#f6e3c8')
+  // 现代白盒别墅配色：暖白墙体、白色挑檐/阳台、深灰窗框、浅灰白踏步
+  private wallMatte = matte('#f2efe9')
   private floorMatte = matte('#c99a6b')
-  private trimMatte = matte('#8a5a3b')
-  private loftMatte = matte('#b98a5e')
-  private stairMatte = matte('#a9744a')
+  private slabMatte = matte('#ece9e2')
+  private frameMatte = matte('#3c434d')
+  private stairMatte = matte('#e7e2d8')
 
   private hFloor!: Mesh3D
   private hBack!: Mesh3D
   private hLeft!: Mesh3D
   private hRight!: Mesh3D
-  private hCornice!: Mesh3D
+  private hRoof!: Mesh3D
   private hSkirt!: Mesh3D
-  private hCapL!: Mesh3D
-  private hCapR!: Mesh3D
-  // 窗户
-  private hWinFrame!: Mesh3D
+  private hAnnex!: Mesh3D
+  // 后墙玻璃幕墙：大玻璃 + 竖梃阵列 + 一道横梃
   private hWinPane!: Mesh3D
-  private hMullion!: Mesh3D
-  // 二层格局
+  private hMullions: Mesh3D[] = []
+  private hMullionH!: Mesh3D
+  // 二层悬挑阳台：楼板 + 前缘封边 + 玻璃栏板 + 扶手 + 立柱 + 楼梯
   private loftGroup!: Container3D
   private hSlab!: Mesh3D
   private hSlabBeam!: Mesh3D
   private hRail!: Mesh3D
+  private hRailGlass!: Mesh3D
   private hRailPost: Mesh3D[] = []
   private hStair!: Mesh3D
   private treads: Mesh3D[] = []
@@ -214,27 +215,31 @@ export class SweetRoom {
       this.hBack = new Mesh3D({ material: this.wallMatte, castShadow: false, receiveShadow: true })
       this.hLeft = new Mesh3D({ material: this.wallMatte, castShadow: false, receiveShadow: true })
       this.hRight = new Mesh3D({ material: this.wallMatte, castShadow: false, receiveShadow: true })
-      this.hCornice = new Mesh3D({ material: this.trimMatte, castShadow: false })
-      this.hSkirt = new Mesh3D({ material: this.trimMatte, castShadow: false })
-      this.hCapL = new Mesh3D({ material: this.trimMatte, castShadow: false })
-      this.hCapR = new Mesh3D({ material: this.trimMatte, castShadow: false })
-      this.houseGroup.addChild(this.hFloor, this.hBack, this.hLeft, this.hRight, this.hCornice, this.hSkirt, this.hCapL, this.hCapR)
+      this.hRoof = new Mesh3D({ material: this.slabMatte, castShadow: false, receiveShadow: true })
+      this.hSkirt = new Mesh3D({ material: this.slabMatte, castShadow: false })
+      this.hAnnex = new Mesh3D({ material: this.wallMatte, castShadow: false, receiveShadow: true })
+      this.houseGroup.addChild(this.hFloor, this.hBack, this.hLeft, this.hRight, this.hRoof, this.hSkirt, this.hAnnex)
 
-      // 后墙大窗：木框背板 + 半透明玻璃 + 中竖梃
-      this.hWinFrame = new Mesh3D({ material: this.trimMatte, castShadow: false, receiveShadow: true })
+      // 后墙玻璃幕墙：整面玻璃 + 深灰竖梃阵列 + 一道横梃
       this.hWinPane = new Mesh3D({ material: glass(), castShadow: false, receiveShadow: false })
-      this.hMullion = new Mesh3D({ material: this.trimMatte, castShadow: false })
-      this.houseGroup.addChild(this.hWinFrame, this.hWinPane, this.hMullion)
+      this.hMullionH = new Mesh3D({ material: this.frameMatte, castShadow: false })
+      this.houseGroup.addChild(this.hWinPane, this.hMullionH)
+      for (let i = 0; i < 5; i++) {
+        const m = new Mesh3D({ material: this.frameMatte, castShadow: false })
+        this.hMullions.push(m)
+        this.houseGroup.addChild(m)
+      }
 
-      // 二层：悬挑楼板 + 前缘横梁 + 栏杆横杆/立柱 + 楼梯斜托板与踏步
-      this.hSlab = new Mesh3D({ material: this.loftMatte, castShadow: true, receiveShadow: true })
-      this.hSlabBeam = new Mesh3D({ material: this.trimMatte, castShadow: true })
-      this.hRail = new Mesh3D({ material: this.trimMatte, castShadow: false })
+      // 二层悬挑阳台：白色楼板 + 前缘封边 + 玻璃栏板 + 扶手 + 立柱 + 楼梯
+      this.hSlab = new Mesh3D({ material: this.slabMatte, castShadow: true, receiveShadow: true })
+      this.hSlabBeam = new Mesh3D({ material: this.slabMatte, castShadow: true })
+      this.hRail = new Mesh3D({ material: this.frameMatte, castShadow: false })
+      this.hRailGlass = new Mesh3D({ material: glass(), castShadow: false, receiveShadow: false })
       this.hStair = new Mesh3D({ material: this.stairMatte, castShadow: true, receiveShadow: true })
-      this.loftGroup.addChild(this.hSlab, this.hSlabBeam, this.hRail, this.hStair)
+      this.loftGroup.addChild(this.hSlab, this.hSlabBeam, this.hRail, this.hRailGlass, this.hStair)
 
       for (let i = 0; i < 4; i++) {
-        const post = new Mesh3D({ material: this.trimMatte, castShadow: false })
+        const post = new Mesh3D({ material: this.frameMatte, castShadow: false })
         this.hRailPost.push(post)
         this.loftGroup.addChild(post)
       }
@@ -258,49 +263,62 @@ export class SweetRoom {
     this.hRight.geometry = new CubeGeometry({ width: 0.12, height: H, depth: D })
     this.hRight.position.set(x1 + 0.06, H / 2, -D / 2)
 
-    this.hCornice.geometry = new CubeGeometry({ width: W + 0.24, height: 0.18, depth: 0.26 })
-    this.hCornice.position.set(0, H + 0.06, -D + 0.04)
+    // 顶部贯通平直大挑檐，四周挑出墙面（参考图现代白盒檐口）
+    this.hRoof.geometry = new CubeGeometry({ width: W + 0.5, height: 0.14, depth: D + 0.4 })
+    this.hRoof.position.set(0, H + 0.07, -D / 2)
 
-    // 两山墙压顶木梁，收口墙顶避免外翻单薄感
-    this.hCapL.geometry = new CubeGeometry({ width: 0.16, height: 0.16, depth: D + 0.24 })
-    this.hCapL.position.set(x0 - 0.06, H + 0.08, -D / 2)
-    this.hCapR.geometry = new CubeGeometry({ width: 0.16, height: 0.16, depth: D + 0.24 })
-    this.hCapR.position.set(x1 + 0.06, H + 0.08, -D / 2)
+    this.hSkirt.geometry = new CubeGeometry({ width: W, height: 0.12, depth: 0.08 })
+    this.hSkirt.position.set(0, 0.06, -D + 0.05)
 
-    this.hSkirt.geometry = new CubeGeometry({ width: W, height: 0.14, depth: 0.08 })
-    this.hSkirt.position.set(0, 0.07, -D + 0.05)
+    // 左侧错动体块：比主体低矮的凸出白盒，呼应参考图左侧体量
+    const annexW = 1.5
+    const annexD = D * 0.55
+    this.hAnnex.geometry = new CubeGeometry({ width: annexW, height: 2.2, depth: annexD })
+    this.hAnnex.position.set(x0 - annexW / 2 + 0.12, 1.1, -D + annexD / 2)
 
-    // ---- 后墙大窗 ----
-    const winW = W * 0.72
-    const winH = 1.5
-    const winY = 1.85
-    this.hWinFrame.geometry = new CubeGeometry({ width: winW + 0.18, height: winH + 0.18, depth: 0.05 })
-    this.hWinFrame.position.set(0, winY, -D + 0.005)
+    // ---- 后墙整面玻璃幕墙（深灰分格） ----
+    const SLAB_TOP = 2.6
+    const winW = W * 0.88
+    const winBottom = 0.35
+    const winTop = H - 0.3
+    const winH = winTop - winBottom
+    const winY = (winBottom + winTop) / 2
     this.hWinPane.geometry = new CubeGeometry({ width: winW, height: winH, depth: 0.04 })
     this.hWinPane.position.set(0, winY, -D + 0.03)
-    this.hMullion.geometry = new CubeGeometry({ width: 0.08, height: winH, depth: 0.05 })
-    this.hMullion.position.set(0, winY, -D + 0.04)
 
-    // ---- 二层悬挑平台 + 前缘横梁 + 栏杆横杆/立柱 + 踏步楼梯 ----
-    const SLAB_TOP = 2.6
+    // 二层标高处一道横梃，分隔上下两层玻璃
+    this.hMullionH.geometry = new CubeGeometry({ width: winW, height: 0.07, depth: 0.05 })
+    this.hMullionH.position.set(0, SLAB_TOP, -D + 0.045)
+
+    // 竖梃沿幕墙宽等分
+    this.hMullions.forEach((m, i) => {
+      const xi = -winW / 2 + (winW * i) / (this.hMullions.length - 1)
+      m.geometry = new CubeGeometry({ width: 0.07, height: winH, depth: 0.05 })
+      m.position.set(xi, winY, -D + 0.045)
+    })
+
+    // ---- 二层悬挑白色阳台 + 玻璃栏板 ----
     const SLAB_THICK = 0.16
     const SLAB_DEPTH = D * 0.55
     const zf = -D + SLAB_DEPTH
     this.hSlab.geometry = new CubeGeometry({ width: W, height: SLAB_THICK, depth: SLAB_DEPTH })
     this.hSlab.position.set(0, SLAB_TOP - SLAB_THICK / 2, -D + SLAB_DEPTH / 2)
 
-    // 前缘横梁：承托楼板与栏杆，消除悬挑单薄悬浮感
-    this.hSlabBeam.geometry = new CubeGeometry({ width: W, height: 0.22, depth: 0.18 })
-    this.hSlabBeam.position.set(0, SLAB_TOP - 0.11, zf + 0.06)
+    // 前缘白色封边板
+    this.hSlabBeam.geometry = new CubeGeometry({ width: W, height: 0.18, depth: 0.16 })
+    this.hSlabBeam.position.set(0, SLAB_TOP - 0.09, zf + 0.05)
 
-    this.hRail.geometry = new CubeGeometry({ width: W, height: 0.08, depth: 0.08 })
-    this.hRail.position.set(0, SLAB_TOP + 0.72, zf + 0.04)
+    // 玻璃栏板 + 顶部深灰扶手
+    this.hRailGlass.geometry = new CubeGeometry({ width: W, height: 0.62, depth: 0.03 })
+    this.hRailGlass.position.set(0, SLAB_TOP + 0.31, zf + 0.04)
+    this.hRail.geometry = new CubeGeometry({ width: W, height: 0.07, depth: 0.07 })
+    this.hRail.position.set(0, SLAB_TOP + 0.65, zf + 0.04)
 
     // 栏杆立柱：两端与内部分布，沿板宽均分
     const postXs = [x0 + 0.18, -W / 6, W / 6, x1 - 0.18]
     this.hRailPost.forEach((post, i) => {
-      post.geometry = new CubeGeometry({ width: 0.07, height: 0.72, depth: 0.07 })
-      post.position.set(postXs[i], SLAB_TOP + 0.36, zf + 0.04)
+      post.geometry = new CubeGeometry({ width: 0.06, height: 0.65, depth: 0.06 })
+      post.position.set(postXs[i], SLAB_TOP + 0.325, zf + 0.04)
     })
 
     // 楼梯：斜托板 + 8 级水平踏步，贴左墙落地升至二层前缘
