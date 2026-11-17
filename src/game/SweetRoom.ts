@@ -1,10 +1,11 @@
-import { Application } from 'pixi.js'
+import { Application, Assets } from 'pixi.js'
 import {
-  View3D, Mesh3D, Container3D, Plane, Vector3,
+  View3D, Mesh3D, Container3D, Plane, Vector3, Model3D,
   CubeGeometry, PlaneGeometry, CylinderGeometry, SphereGeometry, ConeGeometry,
   DirectionalLight, AmbientLight, PointLight,
   Pointer3DEvent
 } from '@pixi/3d'
+import type { Scene3DSource } from '@pixi/3d'
 import { OutlinePass } from '@pixi/3d/extras'
 import {
   state, addItem, removeItem, moveItem, selectItem,
@@ -22,6 +23,8 @@ export class SweetRoom {
 
   private houseGroup!: Container3D
   private itemsGroup!: Container3D
+  private modelGroup!: Container3D
+  private houseModel: Model3D | null = null
   private nodeMap = new Map<string, Container3D>()
 
   private ghost: Container3D | null = null
@@ -96,9 +99,11 @@ export class SweetRoom {
     this.houseGroup = new Container3D()
     this.itemsGroup = new Container3D()
     this.loftGroup = new Container3D()
-    this.view.root.addChild(this.houseGroup, this.loftGroup, this.itemsGroup)
+    this.modelGroup = new Container3D()
+    this.view.root.addChild(this.houseGroup, this.modelGroup, this.loftGroup, this.itemsGroup)
 
     this.rebuildHouse()
+    void this.loadHouseModel()
     this.setupCamera()
     this.setupPicking()
     this.setupRing()
@@ -339,6 +344,45 @@ export class SweetRoom {
       tread.geometry = new CubeGeometry({ width: 0.85, height: 0.1, depth: stepD * 1.12 })
       tread.position.set(stairX, (i + 1) * stepH - 0.05, zStart - (i + 0.5) * stepD)
     })
+  }
+
+  // -------------------------------------------------------------------------
+  // Blender 房屋模型（GLB）
+  // -------------------------------------------------------------------------
+
+  /** 加载 Blender 导出的房屋 GLB；成功后以模型为外观主体，隐藏旧积木外观构件 */
+  private async loadHouseModel(): Promise<void> {
+    try {
+      const source = await Assets.load<Scene3DSource>('/models/house.glb')
+      const model = new Model3D({
+        source,
+        castShadow: true,
+        receiveShadow: true,
+        label: 'house'
+      })
+      this.modelGroup.addChild(model)
+      // 导出按 glTF 约定把 Blender -Y 作为前向，本场景建模时敞开面朝向相反，
+      // 绕 Y 转 180° 让后墙回到 -Z、半开间敞开面朝向 +Z（与相机同侧）。
+      model.rotation.y = Math.PI
+      const b = model.getLocalBounds()
+      console.log('[house-model] bounds', b.min, b.max, 'size', model.getSize())
+      this.houseModel = model
+      this.hideLegacyHouse()
+    } catch (err) {
+      console.error('house.glb 加载失败，回退积木房屋', err)
+    }
+  }
+
+  /** GLB 外观接管后，隐藏代码拼装的墙体/幕墙/阳台/楼梯，仅保留地板作为落地基准 */
+  private hideLegacyHouse(): void {
+    const hide: (Mesh3D | null)[] = [
+      this.hBack, this.hLeft, this.hRight, this.hRoof, this.hSkirt, this.hAnnex,
+      this.hWinPane, this.hMullionH, ...this.hMullions
+    ]
+    for (const m of hide) {
+      if (m) m.visible = false
+    }
+    this.loftGroup.visible = false
   }
 
   // -------------------------------------------------------------------------
