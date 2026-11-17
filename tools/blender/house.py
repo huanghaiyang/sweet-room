@@ -285,9 +285,9 @@ def build_terrain(m: dict) -> None:
 
     # Cliff: one consolidated rock platform on the game-right. Top flush with lawn (y=0);
     # the mass drops to the sea, with a darker cut face toward the house.
-    gbox("CLIFF", (6.8, -1.0, -1.5), (5.6, 2.0, 6.0), m["cliff_dark"])
-    gbox("CLIFF_FACE", (4.25, -0.9, -1.5), (0.5, 1.8, 6.0), m["cliff"])
-    gbox("CLIFF_TOP", (6.8, 0.04, -1.5), (5.6, 0.10, 6.0), m["grass_lime"])
+    gbox("CLIFF", (6.8, -1.0, -2.0), (5.6, 2.0, 4.5), m["cliff_dark"])
+    gbox("CLIFF_FACE", (4.25, -0.9, -2.0), (0.5, 1.8, 4.5), m["cliff"])
+    gbox("CLIFF_TOP", (6.8, 0.04, -2.0), (5.6, 0.10, 4.5), m["grass_lime"])
 
     # Foam flecks at the cliff foot, along the sea edge.
     for i, (fx, fz) in enumerate([(4.6, -4.6), (6.6, -5.0), (8.6, -4.4)]):
