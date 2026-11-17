@@ -157,7 +157,10 @@ def gsphere(name: str, center_g, radius: float, mat, detail: int = 1):
     cx, cy, cz = _to_blender(gx, gy, gz)
     bm = bmesh.new()
     bmesh.ops.create_icosphere(bm, subdivisions=detail, radius=radius)
-    bmesh.ops.translate(bm, vec=mathutils.Vector((cx, cy, cz)))
+    for v in bm.verts:
+        v.co.x += cx
+        v.co.y += cy
+        v.co.z += cz
     me = bpy.data.meshes.new("GEO-" + name)
     bm.to_mesh(me)
     bm.free()
@@ -336,6 +339,23 @@ def scene_bounds():
     return {"min": [round(x, 4) for x in mins], "max": [round(x, 4) for x in maxs]}
 
 
+def object_bounds():
+    """Per-object bbox back in game coords (gx=-bx, gy=bz, gz=by)."""
+    out = {}
+    for obj in bpy.data.objects:
+        if obj.type != "MESH":
+            continue
+        gx, gy, gz = [], [], []
+        for v in obj.data.vertices:
+            co = obj.matrix_world @ v.co
+            gx.append(-co.x)
+            gy.append(co.z)
+            gz.append(co.y)
+        out[obj.name] = [round(min(gx), 2), round(min(gy), 2), round(min(gz), 2),
+                          round(max(gx), 2), round(max(gy), 2), round(max(gz), 2)]
+    return out
+
+
 def resolve_path(p: str) -> str:
     if os.path.isabs(p):
         return p
@@ -374,6 +394,7 @@ def main() -> None:
         "rooms": rooms,
         "objects": sorted(o.name for o in bpy.data.objects if o.type == "MESH"),
         "bounds": scene_bounds(),
+        "obbox": object_bounds(),
         "glb": glb_path,
         "glb_size": os.path.getsize(glb_path),
     }
