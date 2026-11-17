@@ -313,7 +313,7 @@ def build_materials() -> dict:
         "frame": make_material("FRAME", (0.235, 0.263, 0.302), rough=0.55),
         "floor": make_material("FLOOR", (0.788, 0.604, 0.420), rough=0.85),
         "wood": make_material("WOOD", (0.725, 0.541, 0.369), rough=0.8),
-        "glass": make_material("GLASS", (0.36, 0.62, 0.78), rough=0.1, alpha=0.62),
+        "glass": make_material("GLASS", (0.30, 0.56, 0.75), rough=0.1, alpha=0.58),
         "grass": make_material("GRASS", (0.541, 0.659, 0.400), rough=0.95),
         "grass_lime": make_material("GRASS_LIME", (0.659, 0.776, 0.427), rough=0.95),
         "cliff": make_material("CLIFF", (0.851, 0.706, 0.549), rough=0.95),
