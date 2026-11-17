@@ -32,9 +32,20 @@ export class SweetRoom {
   private dragPlane = new Plane()
   private grabOffset = new Vector3()
 
+  // 环绕相机状态（球坐标，自驱动，不挂 OrbitCamera）
+  private camTarget = new Vector3(0, 1.0, -0.6)
+  private camAzimuth = 0
+  private camPolar = 1.246
+  private camRadius = 10.66
+  private camDragging = false
+  private camLastX = 0
+  private camLastY = 0
+
   private wallMatte = matte('#f6e3c8')
   private floorMatte = matte('#c99a6b')
   private trimMatte = matte('#8a5a3b')
+  private loftMatte = matte('#b98a5e')
+  private stairMatte = matte('#a9744a')
 
   private hFloor!: Mesh3D
   private hBack!: Mesh3D
@@ -42,6 +53,8 @@ export class SweetRoom {
   private hRight!: Mesh3D
   private hCornice!: Mesh3D
   private hSkirt!: Mesh3D
+  private hCapL!: Mesh3D
+  private hCapR!: Mesh3D
   // 窗户
   private hWinFrame!: Mesh3D
   private hWinPane!: Mesh3D
@@ -49,8 +62,11 @@ export class SweetRoom {
   // 二层格局
   private loftGroup!: Container3D
   private hSlab!: Mesh3D
+  private hSlabBeam!: Mesh3D
   private hRail!: Mesh3D
+  private hRailPost: Mesh3D[] = []
   private hStair!: Mesh3D
+  private treads: Mesh3D[] = []
 
   async init(container: HTMLElement): Promise<void> {
     this.app = new Application()
@@ -150,9 +166,23 @@ export class SweetRoom {
   }
 
   private setupCamera(): void {
-    // 固定半开间视角，不挂轨道控制器，避免其指针订阅干扰摆放拾取
-    this.view.camera.position.set(0, 4.4, 9.5)
-    this.view.camera.lookAt({ x: 0, y: 1.0, z: -0.6 })
+    this.applyCamera()
+  }
+
+  private applyCamera(): void {
+    const h = this.camRadius * Math.sin(this.camPolar)
+    this.view.camera.position.set(
+      this.camTarget.x + h * Math.sin(this.camAzimuth),
+      this.camTarget.y + this.camRadius * Math.cos(this.camPolar),
+      this.camTarget.z + h * Math.cos(this.camAzimuth)
+    )
+    this.view.camera.lookAt(this.camTarget)
+  }
+
+  private clampCamera(): void {
+    this.camAzimuth = Math.min(0.9, Math.max(-0.9, this.camAzimuth))
+    this.camPolar = Math.min(1.35, Math.max(0.55, this.camPolar))
+    this.camRadius = Math.min(14, Math.max(7.5, this.camRadius))
   }
 
   private setupRing(): void {
@@ -186,7 +216,9 @@ export class SweetRoom {
       this.hRight = new Mesh3D({ material: this.wallMatte, castShadow: false, receiveShadow: true })
       this.hCornice = new Mesh3D({ material: this.trimMatte, castShadow: false })
       this.hSkirt = new Mesh3D({ material: this.trimMatte, castShadow: false })
-      this.houseGroup.addChild(this.hFloor, this.hBack, this.hLeft, this.hRight, this.hCornice, this.hSkirt)
+      this.hCapL = new Mesh3D({ material: this.trimMatte, castShadow: false })
+      this.hCapR = new Mesh3D({ material: this.trimMatte, castShadow: false })
+      this.houseGroup.addChild(this.hFloor, this.hBack, this.hLeft, this.hRight, this.hCornice, this.hSkirt, this.hCapL, this.hCapR)
 
       // 后墙大窗：木框背板 + 半透明玻璃 + 中竖梃
       this.hWinFrame = new Mesh3D({ material: this.trimMatte, castShadow: false, receiveShadow: true })
@@ -194,11 +226,23 @@ export class SweetRoom {
       this.hMullion = new Mesh3D({ material: this.trimMatte, castShadow: false })
       this.houseGroup.addChild(this.hWinFrame, this.hWinPane, this.hMullion)
 
-      // 二层：悬挑楼板 + 前缘栏杆 + 楼梯
-      this.hSlab = new Mesh3D({ material: this.floorMatte, castShadow: true, receiveShadow: true })
+      // 二层：悬挑楼板 + 前缘横梁 + 栏杆横杆/立柱 + 楼梯斜托板与踏步
+      this.hSlab = new Mesh3D({ material: this.loftMatte, castShadow: true, receiveShadow: true })
+      this.hSlabBeam = new Mesh3D({ material: this.trimMatte, castShadow: true })
       this.hRail = new Mesh3D({ material: this.trimMatte, castShadow: false })
-      this.hStair = new Mesh3D({ material: this.trimMatte, castShadow: true, receiveShadow: true })
-      this.loftGroup.addChild(this.hSlab, this.hRail, this.hStair)
+      this.hStair = new Mesh3D({ material: this.stairMatte, castShadow: true, receiveShadow: true })
+      this.loftGroup.addChild(this.hSlab, this.hSlabBeam, this.hRail, this.hStair)
+
+      for (let i = 0; i < 4; i++) {
+        const post = new Mesh3D({ material: this.trimMatte, castShadow: false })
+        this.hRailPost.push(post)
+        this.loftGroup.addChild(post)
+      }
+      for (let i = 0; i < 8; i++) {
+        const tread = new Mesh3D({ material: this.stairMatte, castShadow: true, receiveShadow: true })
+        this.treads.push(tread)
+        this.loftGroup.addChild(tread)
+      }
     }
 
     this.hFloor.geometry = new CubeGeometry({ width: W, height: 0.12, depth: D })
@@ -217,6 +261,12 @@ export class SweetRoom {
     this.hCornice.geometry = new CubeGeometry({ width: W + 0.24, height: 0.18, depth: 0.26 })
     this.hCornice.position.set(0, H + 0.06, -D + 0.04)
 
+    // 两山墙压顶木梁，收口墙顶避免外翻单薄感
+    this.hCapL.geometry = new CubeGeometry({ width: 0.16, height: 0.16, depth: D + 0.24 })
+    this.hCapL.position.set(x0 - 0.06, H + 0.08, -D / 2)
+    this.hCapR.geometry = new CubeGeometry({ width: 0.16, height: 0.16, depth: D + 0.24 })
+    this.hCapR.position.set(x1 + 0.06, H + 0.08, -D / 2)
+
     this.hSkirt.geometry = new CubeGeometry({ width: W, height: 0.14, depth: 0.08 })
     this.hSkirt.position.set(0, 0.07, -D + 0.05)
 
@@ -231,22 +281,46 @@ export class SweetRoom {
     this.hMullion.geometry = new CubeGeometry({ width: 0.08, height: winH, depth: 0.05 })
     this.hMullion.position.set(0, winY, -D + 0.04)
 
-    // ---- 二层悬挑平台 + 栏杆 + 楼梯 ----
+    // ---- 二层悬挑平台 + 前缘横梁 + 栏杆横杆/立柱 + 踏步楼梯 ----
     const SLAB_TOP = 2.6
     const SLAB_THICK = 0.16
     const SLAB_DEPTH = D * 0.55
     const zf = -D + SLAB_DEPTH
     this.hSlab.geometry = new CubeGeometry({ width: W, height: SLAB_THICK, depth: SLAB_DEPTH })
     this.hSlab.position.set(0, SLAB_TOP - SLAB_THICK / 2, -D + SLAB_DEPTH / 2)
+
+    // 前缘横梁：承托楼板与栏杆，消除悬挑单薄悬浮感
+    this.hSlabBeam.geometry = new CubeGeometry({ width: W, height: 0.22, depth: 0.18 })
+    this.hSlabBeam.position.set(0, SLAB_TOP - 0.11, zf + 0.06)
+
     this.hRail.geometry = new CubeGeometry({ width: W, height: 0.08, depth: 0.08 })
     this.hRail.position.set(0, SLAB_TOP + 0.72, zf + 0.04)
 
-    const run = 0.3 - zf
+    // 栏杆立柱：两端与内部分布，沿板宽均分
+    const postXs = [x0 + 0.18, -W / 6, W / 6, x1 - 0.18]
+    this.hRailPost.forEach((post, i) => {
+      post.geometry = new CubeGeometry({ width: 0.07, height: 0.72, depth: 0.07 })
+      post.position.set(postXs[i], SLAB_TOP + 0.36, zf + 0.04)
+    })
+
+    // 楼梯：斜托板 + 8 级水平踏步，贴左墙落地升至二层前缘
+    const stairX = x0 + 0.72
+    const zStart = 0.35
+    const zEnd = zf
+    const run = zStart - zEnd
     const rise = SLAB_TOP
     const len = Math.sqrt(run * run + rise * rise)
-    this.hStair.geometry = new CubeGeometry({ width: 0.95, height: 0.08, depth: len })
-    this.hStair.position.set(x0 + 1.05, rise / 2, (0.3 + zf) / 2)
+    this.hStair.geometry = new CubeGeometry({ width: 0.85, height: 0.06, depth: len })
+    this.hStair.position.set(stairX, rise / 2, (zStart + zEnd) / 2)
     this.hStair.rotation.x = -Math.atan2(rise, run)
+
+    const STEPS = 8
+    const stepD = run / STEPS
+    const stepH = rise / STEPS
+    this.treads.forEach((tread, i) => {
+      tread.geometry = new CubeGeometry({ width: 0.85, height: 0.1, depth: stepD * 1.12 })
+      tread.position.set(stairX, (i + 1) * stepH - 0.05, zStart - (i + 0.5) * stepD)
+    })
   }
 
   // -------------------------------------------------------------------------
@@ -356,8 +430,39 @@ export class SweetRoom {
         this.placeFromGhost(e)
         return
       }
-      if (!e.target3D) selectItem(null)
+      // 点中物件时由物件自身的拖拽逻辑处理；空地左键拖拽用于环绕视角
+      if (!e.target3D) {
+        selectItem(null)
+        this.camDragging = true
+        this.camLastX = e.global.x
+        this.camLastY = e.global.y
+      }
     })
+
+    this.view.on('globalpointermove', (e: Pointer3DEvent) => {
+      if (!this.camDragging) return
+      const dx = e.global.x - this.camLastX
+      const dy = e.global.y - this.camLastY
+      this.camLastX = e.global.x
+      this.camLastY = e.global.y
+      this.camAzimuth -= dx * 0.005
+      this.camPolar -= dy * 0.005
+      this.clampCamera()
+      this.applyCamera()
+    })
+
+    const endCam = () => { this.camDragging = false }
+    this.view.on('pointerup', endCam)
+    this.view.on('pointerupoutside', endCam)
+
+    this.app.canvas.addEventListener('wheel', this.onWheel, { passive: false })
+  }
+
+  private onWheel = (ev: WheelEvent): void => {
+    ev.preventDefault()
+    this.camRadius += ev.deltaY * 0.01
+    this.clampCamera()
+    this.applyCamera()
   }
 
   private updateGhost(e: Pointer3DEvent): void {
@@ -478,6 +583,7 @@ export class SweetRoom {
 
   destroy(): void {
     try {
+      this.app.canvas.removeEventListener('wheel', this.onWheel)
       this.app.destroy(true, { children: true })
     } catch {
       // HMR 卸载时 WebGPU/WebGL buffer 池可能已释放，忽略销毁期异常

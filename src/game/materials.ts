@@ -48,11 +48,11 @@ let _glass: Material3D | null = null
 export function glass(): Material3D {
   if (!_glass) {
     _glass = new Material3D({
-      baseColor: 0x9fd4e8,
+      baseColor: 0xaedcee,
       roughness: 0.1,
       metallic: 0,
       alphaMode: 'blend',
-      alpha: 0.5,
+      alpha: 0.38,
       doubleSided: true
     })
   }
