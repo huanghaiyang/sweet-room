@@ -1,9 +1,9 @@
 # Blender 建模后端（dsh-blender 链路）
 
-本目录是游戏房屋模型的 Blender 生产后端。插件 `dsh-blender` 的 DSH 注入工具
-（`blender_python` / `blender_export` 等）由 DSH host 注入，当前会话不可见；因此这里复用
-插件 skill 的「blockout → detail → validate → export」流程与 Blender 5.x 防御写法，写成
-**自包含 headless 驱动脚本**，由命令行直驱 Blender，等价于插件后端的无 GUI 路线。
+本目录是游戏房屋模型的 Blender 生产后端。驱动脚本 `house.py` 为**双轨**：经 dsh-blender
+后端 headless 执行时复用其注入的 `geo` helper（box/cyl/prism/放样/布尔等）；直驱 Blender
+时回退到本地 bmesh 构造。两种环境共用同一套游戏坐标映射与材质/导出逻辑。脚本按插件 skill
+的「blockout → detail → validate → export」流程组织，并采用 Blender 5.x 防御写法。
 
 ## 环境
 
@@ -13,6 +13,8 @@
 
 ## 复现
 
+直驱 Blender（bmesh fallback）：
+
 ```powershell
 D:\blender\blender.exe --background --python tools\blender\house.py `
   -- --glb public\models\house.glb `
@@ -20,8 +22,13 @@ D:\blender\blender.exe --background --python tools\blender\house.py `
      --rooms 2
 ```
 
+dsh-blender 后端 headless（`geo` helper 路线，推荐）：先拉起后端
+`node "<插件>\runtime\server.mjs" --port 9877`，再 POST `/headless`，用 `scriptFile`
+传脚本绝对路径、`preload:["geo"]`、`args` 传 `--glb/--blend/--rooms`（大脚本勿走内联
+`script` body，避免 HTTP 接收中断）。
+
 - `smoke.py`：后端冒烟用例（建体 + 导出 GLB 头校验），不参与游戏运行。
-- 脚本结束打印 `HOUSE_RESULT {...}`：版本、对象清单、包围盒、产物路径与字节数。
+- 脚本结束打印 `HOUSE_RESULT {...}`：版本、是否走 geo、对象清单、整体与逐对象包围盒、产物路径与字节数。
 
 ## 坐标与朝向约定
 
@@ -35,11 +42,12 @@ D:\blender\blender.exe --background --python tools\blender\house.py `
 
 ## 建模内容
 
-- 建筑：地板、后墙、两山墙、平直挑檐、踢脚线、左侧错动体块带小窗、后墙玻璃幕墙
-  （竖梃 + 横梃）、二层悬挑回廊（楼板、前缘封边、玻璃栏板、扶手、立柱）、右侧双斜梁
-  木踏步楼梯、入口台阶。
-- 地形（`COL-TERRAIN`）：右后侧低多边形悬崖岩体（崖顶草皮）、后侧海面（近岸 + 深海两层）、
-  崖脚浪沫、草地边缘灌木。场景侧草地平面只铺前院与建筑左侧，右侧与后侧留给 GLB 地形。
+- 建筑：地板、后墙窄垛 + 顶梁 + 踢脚 + 大玻璃幕墙（竖梃/横梃）、两侧仅留后角短垛、
+  平直挑檐、左侧错动体块带小窗、二层悬挑回廊（楼板、前缘封边、玻璃栏板、扶手、立柱）、
+  右侧双侧板闭合 + 木踏步楼梯、入口台阶。
+- 地形（`COL-TERRAIN`）：右后侧低多边形崖体（深岩体 + 朝家岩切面 + 崖顶草皮，收回前院）、
+  后侧海面（近岸 + 深海两层）、崖脚浪沫、左草坪与崖顶灌木（短干 + 低多边形冠球）。
+  场景侧草地平面只铺前院与建筑左侧，右侧与后侧留给 GLB 地形。
 
 ## 材质注意
 
@@ -55,3 +63,8 @@ D:\blender\blender.exe --background --python tools\blender\house.py `
 - 悬崖、海面为低多边形块面占位：无连续地形起伏、无海浪/浪花动画；海面位于房屋后侧，
   默认正面相机（方位角限幅 ±0.9）不易看到，需右转或后续放开相机角度。
 - 室内摆件仍由 `src/game/builders.ts` 代码积木生成，尚未迁移到 Blender 模型。
+- 几何为程序化盒体/倒角/棱柱/圆柱/截面放样，属中低模，非雕刻或扫描级高精度；参考图是
+  AI 插画，含手绘质感与贴图，程序化几何无法等价复刻。冠球为低面 icosphere；玻璃仅 alpha
+  blend、无透射，叠在浅色环境上仍偏灰。
+- dsh-blender 是 Blender 执行后端，本身不内置、也不选择对话 LLM；「切换 deepseek 模型」
+  属于宿主 App 的模型设置，agent 侧无法代切。
