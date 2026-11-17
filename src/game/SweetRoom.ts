@@ -160,15 +160,26 @@ export class SweetRoom {
   }
 
   private setupGround(): void {
-    const ground = new Mesh3D({
-      geometry: new PlaneGeometry({ width: 26, height: 20 }),
-      material: matte('#8aa866'),
+    // Lawn is split into the front yard and the building's left side; the right side and
+    // the rear are left clear for the cliff and sea carried by the house GLB terrain.
+    const lawnMat = matte('#8aa866')
+    const front = new Mesh3D({
+      geometry: new PlaneGeometry({ width: 20, height: 8.2 }),
+      material: lawnMat,
       rotation: { x: -Math.PI / 2, y: 0, z: 0 },
-      position: { x: 0, y: 0, z: 2 },
+      position: { x: 0, y: 0, z: 3.9 },
       castShadow: false,
       receiveShadow: true
     })
-    this.view.root.addChild(ground)
+    const left = new Mesh3D({
+      geometry: new PlaneGeometry({ width: 6.8, height: 3.6 }),
+      material: lawnMat,
+      rotation: { x: -Math.PI / 2, y: 0, z: 0 },
+      position: { x: -6.6, y: 0, z: -1.8 },
+      castShadow: false,
+      receiveShadow: true
+    })
+    this.view.root.addChild(front, left)
   }
 
   private setupCamera(): void {

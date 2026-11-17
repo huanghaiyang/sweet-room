@@ -25,11 +25,21 @@ D:\blender\blender.exe --background --python tools\blender\house.py `
 
 ## 坐标与朝向约定
 
-- 脚本内按 Blender 习惯 Z-up 建模；glTF 导出自动转 Y-up。
-- 导出按 glTF 约定把 Blender `-Y` 作为前向，深度轴取反（`z_gltf = -y_blender`）。
-  游戏半开间敞开面朝 `+Z`、后墙在 `-Z`，因此 PixiJS 侧加载后对模型施加
-  `rotation.y = π` 校正前后（见 `src/game/SweetRoom.ts` 的 `loadHouseModel`）。
-- 左右非对称构件（楼梯、错动体块）在 Blender 里预设到对侧，180° 回转后回到游戏的左侧。
+- 脚本 helper `_to_blender` 接收**游戏世界坐标**（X 右、Y 上、Z 朝相机敞开面），
+  换算成 Blender（`x=-X`、`y=Z`、`z=Y`）后把顶点烘焙进网格。
+- 导出 glTF：`x_gltf=x_b`、`y_gltf=z_b`（高度）、`z_gltf=-y_b`；PixiJS 侧加载后再施加
+  `rotation.y = π`（见 `src/game/SweetRoom.ts` 的 `loadHouseModel`）。两层变换叠加后相互
+  抵消，模型最终按脚本传入的游戏坐标落位：`gameX=gx`、`gameY=gy`、`gameZ=gz`。
+  因此左右非对称构件（楼梯、错动体块、悬崖）直接写游戏目标侧，无需再预设镜像对侧。
+- 半开间：敞开面在游戏 `z=0`，后墙在 `z=-DEPTH`，地板顶面 `y=0`。
+
+## 建模内容
+
+- 建筑：地板、后墙、两山墙、平直挑檐、踢脚线、左侧错动体块带小窗、后墙玻璃幕墙
+  （竖梃 + 横梃）、二层悬挑回廊（楼板、前缘封边、玻璃栏板、扶手、立柱）、右侧双斜梁
+  木踏步楼梯、入口台阶。
+- 地形（`COL-TERRAIN`）：右后侧低多边形悬崖岩体（崖顶草皮）、后侧海面（近岸 + 深海两层）、
+  崖脚浪沫、草地边缘灌木。场景侧草地平面只铺前院与建筑左侧，右侧与后侧留给 GLB 地形。
 
 ## 材质注意
 
@@ -42,4 +52,6 @@ D:\blender\blender.exe --background --python tools\blender\house.py `
 
 - `house.glb` 是基础 2 开间的**静态外观**；扩建房间时室内地板与可摆放边界随状态延伸，
   但建筑外立面不随开间数拉伸。后续可按开间数生成多份 GLB，或把外墙段交回积木补建。
+- 悬崖、海面为低多边形块面占位：无连续地形起伏、无海浪/浪花动画；海面位于房屋后侧，
+  默认正面相机（方位角限幅 ±0.9）不易看到，需右转或后续放开相机角度。
 - 室内摆件仍由 `src/game/builders.ts` 代码积木生成，尚未迁移到 Blender 模型。
